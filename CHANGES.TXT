@@ -1,0 +1,449 @@
+CHANGES
+-------
+
+The major number changes for such things as code rewrites, changes in
+syntax, and/or dramatic changes in functionality. The minor number
+changes for corrections, enhancements, etc. made to the code. There
+is no set schedule for releases.
+
+--TODO--
+
+
+--0.22--
+
+   !	filterRcpt: when no cached record exists, the new TEMPFAIL
+   	record neglected to initialise the touch time to "now".
+   	Reported by Thaddeus Perala.
+
+--0.21.115--
+
+   !	cacheUpdate: now always updates the touch time.
+
+--0.21.114--
+
+   !	Fixed documentation: -C should have been cache-accept-ttl.
+
+--0.21--
+
+  !!	Regression. Cache update code for the initial temporary
+	failure went missing. Reported by Rene Berber.
+
+   !	Regression. When block-time-static is disabled, then block-
+	time should always be used.
+
+   +	Added start-up check that block-time is never negative.
+
+--0.20.112--
+
+   !	Removed configure script dependence on SQLite3.
+
+--0.20--
+
+   +	Requires LibSnert 1.63
+
+   !	isIpInClientName() replaced by isIPv4InClientName() to fix
+	issues with scanning the client's host name from the reverse
+	DNS of the client's IP address. Reported by René Berber. The
+	new version is more comprehensive in octet patterns it
+	searches for. See libsnert/1.63 net/ipinclient.c.
+
+   !	atExitCleanUp(): added NULL guard around cache cleanup code in
+   	case its the cache was not initialised.
+
+   !	cacheUpdate() fixed bug concerning updates to the timestamp
+	during the grey-list period that would cause the grey-list
+	entry to block almost indefinitely. Reported by Mike Elliott
+
+   !	Default cache-temp-fail-ttl changed from one week to 25 hours.
+
+   !	Corrected documentation error concerning two cache-type
+	options when it should have been cache-file and cache-type.
+
+   !	Corrected documentation error concerning completely wrong
+   	description of access-db taken from another milter.
+
+   +	access-db now supports socket-map, flat-file, and SQLite3
+	lookups in addition to Berkeley DB. The SQLite3 behaviour
+	can be disabled via LibSnert's ./configure script.
+
+   !	Rejection based on access-db blacklisting now disabled. Some
+	users prefer leaving blacklisting upto Sendmail and not the
+	milter. Reported by Derek Balling and others.
+
+--0.19--
+
+   +	Requires LibSnert 1.62
+
+   !	Postfix 2.3 does not support the sendmail {if_addr} macro, so
+	use the client_addr field as an alternative to detecting the
+	loopback or local machine IP in filterData(). Note this only
+	applies if you build sendmail/libmilter with -DSMFI_VERSION=4.
+
+  !!	License 1.4 which provides additional details with regards to
+  	possible license controls used, the possibility of "phone
+  	home code" and its general contents, and related privacy
+  	statement.
+
+   +	Add check for filterOpen() got NULL socket address pointer
+	passed to filterOpen() which inidicates an unsupported address
+	type. The connection is simply accepted to bypass the milter.
+
+--0.18--
+
+   +	Requires LibSnert 1.61
+
+  !!	Complete replacement of option specification and no backwards.
+	compatibility. The newer format allows for better integration
+	of previously undocumented libsnert options and for the
+	inclusion of future enhancements.
+
+   !	filterClose(): remove reporting of "null workspace error",
+	which can occur when a client connection is rejected before or
+	by filterOpen().
+
+   !	Minor corrections for gcc -Wall warnings.
+
+   !	Fix possible race condition in updating cache entries. Replaced
+	cachePut() with cacheUpdate().
+
+--0.17--
+
+   -	The -r option has been removed. It was disabled in 0.7. This
+	option provef to be troublesome and its continued presence
+	would just allow those class of users who turn on all the
+	knobs without understanding to shoot themselves in the foot.
+
+   !	Reverted back to libmilter's default (7210s) timeout. This
+	should silence many of the reported sendmail to milter timeout
+	errors and/or broken connections caused by the milter timing
+	out sooner than sendmail does with the current SMTP client.
+	The sendmail defaults for each SMTP command and receiving the
+	message content is 1h each and so libmilter allows for 2h 10s.
+	But in theory you could be DoS for between 5 and 104 hours per
+	connection. If you want to change this then set in
+	sendmail.mc:
+
+		define(`confTO_DATABLOCK',      `30m')
+		define(`confTO_COMMAND',        `5m')
+
+--0.16--
+
+   !	filterOpen() should have checked for SMDB_ACCESS_ERROR from
+   	smfAccessHost().
+
+--0.15--
+
+   +	Requires LibSnert 1.57
+
+   +	Added support for
+
+   		milter-length-auth:auth_authen		RHS
+   		milter-length-auth:			RHS
+
+   +	When using the -n option, MAIL FROM:<postmaster@...> always
+   	accepted now like the DSN. However, a message from a postmaster
+	address will be blocked at the DATA command if sendmail and
+	libmilter extensions have been enabled. This prevents abuse by
+	spammers. See milter-sender MxCallBackAsPostmaster.
+
+--0.14--
+
+   +	Requires LibSnert 1.56
+
+   !	Changed install.sh.in to create /var/run/mitler/ directory
+   	owned by milter:milter and change the default PID_FILE and
+   	SOCKET_FILE paths. This provides better privelage/security
+   	separation since the milters run as milter:milter.
+
+--0.13--
+
+   +	Requires LibSnert 1.53
+
+   !	filterRcpt() now proper handles per RCPT white listing such
+	that a single white listed recipient does NOT white list the
+	whole message for all other RCPTs. Requested by Sergey Stepanov.
+
+--0.12--
+
+   !	Fix bug when sendmail & libmilter are NOT built with
+   	-DSMFI_VERSION=4, then use old behaviour otherwise nothing
+   	happens.
+
+--0.11--
+
+   !	Touch the timestamp of successful grey-list cache entries that
+	continue to remain active so as to avoid grey-listing a second
+	time. Requested by Arne Handtmann.
+
+	The original design was to always expire entries, even
+	successful ones, in order to retest on occassion. But this
+	negatively impacts legit senders more that the value of
+	retesting. milter-sender made a similar policy change a while
+	back and so precedent has been set.
+
+   !	When sendmail & libmilter are built with -DSMFI_VERSION=4,
+	which enables xxfi_unknown and xxfi_data command handlers,
+	then the temporary fail is defered until the DATA command is
+	sent. This allows for better handling of call-back systems
+	like milter-sender. Based on a suggestion from Claus Assmann.
+
+--0.10--
+
+   !	install.sh: fix use of id -u, which doesn't work on SunOS
+
+   !	install.sh: fix use of bang (!) logical-NOT operator, which
+   	is not available in real Bourne shells or csh.
+
+   !	install.sh: SunOS grep does not have a -q option
+
+   !	install.sh: fixed "if which command ; then" tests with a
+	function. which(1) always returns success (0) on SunOS.
+
+   !	install.sh: SunOS has two different install(1) tools with
+   	different options (-o vs. -u) to set the file owner.
+
+   !	The default value for -I would act like -I 0 instead of being
+   	disabled.
+
+--0.9--
+
+   +	Requires LibSnert 1.41
+
+   !	Fixed configure.in script to better handle Berkeley DB library
+   	and header searches. All these cases should now work.
+
+   		./configure
+   		./configure --with-db
+   		./configure --with-db=/usr/local/BerkeleyDB-4.2
+   		./configure --without-db
+
+   !	Fixed time stamp variables to use the time_t instead of
+	assuming a long.
+
+   !	Fixed the start-up script to unalias shell function names
+	before defining the function. Reported by Francisco of
+	Blackant dot Net.
+
+   !	Encapsulated announce/pass/fail output the startup-script to
+	support different OS favours; some like pretty output, some
+	like it simple.
+
+   -	configure.in: Removed gcc option -fvolatile, which is no longer
+   	supported in as of gcc 3.4.
+
+   !	Renamed -x to -H.
+
+   +	The milter now starts as a background process and can kill a
+	previous instance of itself using the -x option. The -X option
+	is undocumented, but starts the application as a foreground
+	process for the purpose of debugging.
+
+   +	Added support for a /etc/mail/milter-name.cf file that can
+   	contain command-line options and an optional socket argument.
+
+   !	The socket argument is now optional.
+
+   !	The above three changes allow for a simplified startup script
+	template for use by all my milters.
+
+   +	Added -n option to avoid grey listing the null address.
+
+   +	Added auto white listing of expected replies from a recipient
+	to the initial sender. Also auto white listing of possible DSN
+	messages from the recipient's domain to the initial sender.
+	The latter helps in the case of call-back validation made by
+	remote hosts. Based on a request by Marc Dirix.
+
+   -	Removed the compile time option --key-fold. The database keys
+   	are now always case-insensitive.
+
+   +	Added -I option to short-circuit grey-listing only when there
+	is a reverse DNS PTR record which does NOT contain any octets
+	from the client's IPv4 address. In other words, skip grey
+	listing if the client connection resolved and it doesn't look
+	like an assignment from a dynamic IP pool. Commissioned by Chris
+	Wilson. In all other cases, grey list as usual.
+
+   +	Black list entries in access.db now cause a reject of connect,
+   	MAIL, or RCPT.
+
+  !!	Updated LICENSE.TXT.
+
+--0.8--
+
+   +	Requires LibSnert 1.40
+
+   !	Renamed DataInitFromBytes() -> DataInitWithBytes() to remain
+	consistent with my naming/action conventions. A *FromType is a
+	copy from source and a *WithType is an assignment and/or
+	passing of responsiblity of source.
+
+--0.7--
+
+   +	Requires LibSnert 1.39
+
+   !	flatfile cache type should now work correctly.
+
+   !	Fixed FreeBSD cache problem with smfSetProcessOwner() before
+   	any files (specifically the cache) are opened.
+
+   +	Added -z option to select cache type and file name, replacing
+	compile time options.
+
+   !	-r option is now disabled by default.
+
+   !	Fixed the configuration file to recognise OpenBSD. Reported by
+	Francisco of Blackant dot Net.
+
+   !	Fixed the start-up script to unalias shell function names
+	before defining the function. Reported by Francisco of
+	Blackant dot Net.
+
+   !	Added compile time option for the grey-list cache key to
+	always be folded to lower-case, effectively making lookups
+	case- insensitive. Request by Chris M Miller. The local-part
+	of any address is actually case sensitive, but Sendmail
+	doesn't care and some MTA's appear to send email to the same
+	address sometimes as one case, other times as mixed case (this
+	is probably a user land error from using the same account from
+	multiple machines). This can result in longer than expected
+	delays for the same address. The default allows for case-
+	sensitive local-part.
+
+--0.6--
+
+   +	Requires LibSnert 1.38
+
+   +	Bumped version to clearly indicate a new version after some
+	people got hold of pre-release work in progress.
+
+   !	Changed default cache type from BDB to Hash.
+
+--0.5--
+
+   +	Requires LibSnert 1.37
+
+   +	Add VERSION.TXT to configuration for use by sendmail.shtml.
+
+   !	Redefined -c as -C (CacheGreyListAcceptTTL) and added a new -c
+	(CacheGreyListTemporaryTTL). options so that -c only applies
+	to the cached `grey-list temporary' failure entries and -C
+	applies to the upgraded `grey-list continue' entries. The
+	intended use of of this is:
+
+	    -b < -c <= -C
+
+	So essentially you want to shorten the window in which a
+	`grey-list temporary' entry could be upgraded to a `grey-list
+	continue' entry, but allow an upgraded entry to have a longer
+	life. This should prevent spammers from getting a second yet
+	different spam attack through at some later time, because of
+	stale `grey-list temporary' entries.
+
+	Setting -c equal to -C would approximate previous behaviour
+	of the old -c definition.
+
+	Requested by Chris M. Miller.
+
+
+   !	Fix makefile ownership target to assert correct state directory
+   	permissions.
+
+   +	Changed -k option from a code number to a bit value or comma
+   	separated list of bit names: ip, helo, mail, rcpt.  Also added
+   	helo as a possible element for the key.
+
+   !	atExitCleanUp() now calls smdbClose() which mutex protects the
+   	call to db->close(). For the access database this is not so
+   	important, but it clearer code.
+
+   +	atExitCleanUp() mutex protects the call to cache->sync() and
+   	cache->close()
+
+--0.4--
+
+   +	Requires LibSnert 1.36 for major smdb() update to solve threading
+   	issues and a possible memory corruption problem
+
+   !	Clarify right hand side values of tags for white-listing. Suggested by
+   	Derek Balling.  The use of FRIEND and HATER are rather particular to
+   	the Spam: tag and should not be used else where (though they may be
+   	treated as synoyms for OK and REJECT), as they may pose confusion for
+   	Sendmail's tags.
+
+   !	Increase default MilterSocketTimeout to 1800s (30m) to account for
+   	a long connection with multiple messages.
+
+   +	Add an instanceCount for independent tagging of log message separate
+   	from the queue id.
+
+   !	vSetReply() not checks for an MI_FAILURE from smfi_setreply().
+
+   +	Set working directory to the state directory, where is can write
+   	a core file in the event of crash.
+
+   !	nullWorkSpace() now takes a `where' string to report in what hook
+   	it failed.
+
+   +	Added -k option to select type of grey-listing key to use. Idea taken
+   	from milter-sender, based on comments from Kevin Brooks.
+
+   !	Replaced hostname and hostaddr variables by $j and ${if_addr} macros.
+
+   !	Removed requirement for ${client_name} and ${client_addr} macros. Now
+   	use parameters given to filterOpen().
+
+   !	Modified the nature of white-listing just a little to be a bit like
+   	FEATURE(`delay_checks'). This means that a white listed RCPT can
+   	override a black-listed MAIL or connection. And a white-listed MAIL
+   	can override a black listed connection.
+
+   	This behaviour only works 100% when FEATURE(`delay_checks') is
+	used. When not used Sendmail will react to the black listings
+	when it sees them. This is not a problem since this is
+	probably what the postmaster wants.
+
+   !	Replaced hostname and hostaddr variables by ${if_name} and
+   	${if_addr} macros.
+
+   -	Removed Spam: OK tag variant.
+
+   !	Enabled by default From: and To: support.
+
+   !	Replaced some commom code shared by all my milters. See libsnert
+   	Sendmail Filter API (smf).
+
+   !	Standardised the -v option across all my milters. Also support
+   	textual bit names.
+
+   !	Change grey-listing token separator from vertical bar (|) to comma (,)
+   	because vertical bar is allowed in local-part names while comma is not.
+
+   ! 	Modified license.
+
+--0.3--
+
+   !	Fix broken Spam: OK and FRIEND handling. Reported by Derek Balling.
+
+   +	Added new access db tags:
+
+   		milter-gris-from:
+   		milter-gris-to:
+
+--0.2--
+
+   +	Requires LibSnert 1.34
+
+   +	index.shtml: added missing information about `milter-gris-connect'
+   	tag for use in the sendmail access database.
+
+   !	Assorted changes related to smdbAccess* changes in LibSnert.
+
+   +	Added -t option to set the sendmail/milter socket timeout
+
+--0.1--
+
+   +	Requires LibSnert 1.33.
+
+
+
