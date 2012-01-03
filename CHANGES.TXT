@@ -9,6 +9,10 @@ is no set schedule for releases.
 --TODO--
 
 
+--0.23--
+
+   -	Disable rejection deferral for newer versions of libmilter.
+
 --0.22--
 
    !	filterRcpt: when no cached record exists, the new TEMPFAIL
