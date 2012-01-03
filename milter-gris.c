@@ -754,7 +754,7 @@ if (milter.handlers.xxfi_version < 4) {
 				TAG_ARGS, data->line,
 				entry.touched + (data->is_ip_in_ptr ? optBlockTime.value : optBlockTimeStatic.value) - now
 			);
-
+#ifdef OFF
 			if (4 <= milter.handlers.xxfi_version) {
 				/* Defer this rejection until the DATA command.
 				 * This allows call-back schemes like milter-sender
@@ -765,7 +765,7 @@ if (milter.handlers.xxfi_version < 4) {
 
 				return SMFIS_CONTINUE;
 			}
-
+#endif
 			return smfReply(&data->work, 450, "4.7.1", "try again later");
 		}
 
