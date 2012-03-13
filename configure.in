@@ -130,6 +130,8 @@ fi
 #	Generate output.
 #######################################################################
 
+SNERT_FINI
+
 echo
 echo "Generating files..."
 echo
