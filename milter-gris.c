@@ -893,7 +893,11 @@ smfInfo milter = {
 	{
 		MILTER_NAME,		/* filter name */
 		SMFI_VERSION,		/* version code -- do not change */
+#ifdef DROPPED_ADD_HEADERS
+		SMFIF_ADDHDRS,		/* flags */
+#else
 		0,			/* flags */
+#endif
 		filterOpen,		/* connection info filter */
 		filterHelo,		/* SMTP HELO command filter */
 		filterMail,		/* envelope sender filter */
