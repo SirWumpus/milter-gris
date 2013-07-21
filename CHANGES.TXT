@@ -11,9 +11,11 @@ is no set schedule for releases.
 
 --0.24--
 
-   *	Requires LibSnert 1.75.8
+   *	Requires LibSnert 1.75.8+
 
    !	Configure and build changes to reflect changes in libsnert.
+
+   !	Fix localhost, LAN, and access-db white listing.
 
 --0.23--
 

@@ -90,8 +90,6 @@
 #define X_MILTER_PASS			"X-" MILTER_NAME "-Pass"
 #define X_MILTER_REPORT			"X-" MILTER_NAME "-Report"
 
-#undef ENABLE_BLACKLIST
-
 /***********************************************************************
  *** No configuration below this point.
  ***********************************************************************/
@@ -198,7 +196,7 @@ static CacheEntry cacheUndefinedEntry = { X_SMFIS_UNKNOWN, 0, 0 };
 typedef struct {
 	smfWork work;
 	int status;				/* per message */
-	int is_lan;				/* per connection */
+	int is_white;				/* per connection */
 	int is_ip_in_ptr;			/* per connection */
 	int fromPostmaster;			/* per message */
 	char helo[SMTP_DOMAIN_LENGTH+1];	/* per connection */
@@ -265,7 +263,7 @@ cacheGet(workspace data, char *name, CacheEntry *entry)
 
 	rc = -1;
 	*entry = cacheUndefinedEntry;
-	DataInitWithBytes(&key, name, strlen(name)+1);
+	DataInitWithBytes(&key, (unsigned char *)name, strlen(name)+1);
 
 	if (pthread_mutex_lock(&smfMutex))
 		syslog(LOG_ERR, TAG_FORMAT "mutex lock in cacheGet() failed: %s (%d) ", TAG_ARGS, strerror(errno), errno);
@@ -351,7 +349,7 @@ cacheUpdate(workspace data, char *name, CacheEntry *entry, sfsistat status)
 	struct data key, value;
 
 	entry->count = 0;
-	DataInitWithBytes(&key, name, strlen(name)+1);
+	DataInitWithBytes(&key, (unsigned char *)name, strlen(name)+1);
 
 	if (pthread_mutex_lock(&smfMutex))
 		syslog(LOG_ERR, TAG_FORMAT "mutex lock in cacheUpdate() failed: %s (%d) ", TAG_ARGS, strerror(errno), errno);
@@ -474,15 +472,16 @@ filterOpen(SMFICTX *ctx, char *client_name, _SOCK_ADDR *raw_client_addr)
 	access = smfAccessHost(&data->work, MILTER_NAME "-connect:", client_name, data->client_addr, SMDB_ACCESS_OK);
 
 	switch (access) {
-#ifdef ENABLE_BLACKLIST
 	case SMDB_ACCESS_REJECT:
 		return smfReply(&data->work, 550, "5.7.1", "connection %s [%s] blocked", client_name, data->client_addr);
-#endif
 	case SMDB_ACCESS_ERROR:
 		return SMFIS_REJECT;
+	case SMDB_ACCESS_OK:
+		data->is_white = 1;
+		return SMFIS_CONTINUE;
 	}
 
-	data->is_lan = isReservedIP(data->client_addr, IS_IP_LOCAL_OR_LAN);
+	data->is_white = isReservedIP(data->client_addr, IS_IP_LOCAL_OR_LAN);
 
 	/* When block-time-static is disabled, then use block-time
 	 * which should always be defined.
@@ -550,12 +549,13 @@ filterMail(SMFICTX *ctx, char **args)
 	access = smfAccessMail(&data->work, MILTER_NAME "-from:", args[0], SMDB_ACCESS_UNKNOWN);
 
 	switch (access) {
-#ifdef ENABLE_BLACKLIST
 	case SMDB_ACCESS_REJECT:
-		return smfReply(&data->work, 550, "5.7.1", "sender authorisation <%s> denied", auth_authen);
-#endif
+		return smfReply(&data->work, 550, "5.7.1", "sender %s denied", args[0]);
 	case SMDB_ACCESS_ERROR:
 		return SMFIS_REJECT;
+	case SMDB_ACCESS_OK:
+		data->is_white = 1;
+		return SMFIS_CONTINUE;
 	}
 
 	auth_authen = smfi_getsymval(ctx, smMacro_auth_authen);
@@ -564,10 +564,8 @@ filterMail(SMFICTX *ctx, char **args)
 	switch (access) {
 	case SMDB_ACCESS_ERROR:
 		return SMFIS_REJECT;
-#ifdef ENABLE_BLACKLIST
 	case SMDB_ACCESS_REJECT:
-		return smfReply(&data->work, 550, "5.7.1", "sender blocked");
-#endif
+		return smfReply(&data->work, 550, "5.7.1", "sender %s blocked ", args[0]);
 	case SMDB_ACCESS_OK:
 		syslog(LOG_INFO, TAG_FORMAT "sender %s authenticated, accept", TAG_ARGS, args[0]);
 		return SMFIS_ACCEPT;
@@ -592,15 +590,16 @@ filterRcpt(SMFICTX *ctx, char **args)
 	smfLog(SMF_LOG_TRACE, TAG_FORMAT "filterRcpt(%lx, %lx) RCPT='%s'", TAG_ARGS, (long) ctx, (long) args, args[0]);
 
 	switch (smfAccessRcpt(&data->work, MILTER_NAME "-to:", args[0])) {
-#ifdef ENABLE_BLACKLIST
 	case SMDB_ACCESS_REJECT:
 		return smfReply(&data->work, 550, "5.7.1", "recipient blocked");
-#endif
 	case SMDB_ACCESS_ERROR:
 		return SMFIS_REJECT;
 	case SMDB_ACCESS_OK:
 		return SMFIS_CONTINUE;
 	}
+
+	if (data->is_white)
+		return SMFIS_CONTINUE;
 
 	if (optAcceptNullSender.value) {
 		if (*data->work.mail->address.string == '\0')
@@ -814,7 +813,7 @@ filterData(SMFICTX * ctx)
 	 * filtering to <postmaster> and does not require us to accept
 	 * MAIL FROM:<postmaster@some.place>.
 	 */
-	if (data->fromPostmaster && !data->work.skipMessage  && !data->is_lan && strcmp(smfOptInterfaceIp.string, data->client_addr) != 0)
+	if (data->fromPostmaster && !data->work.skipMessage  && !data->is_white && strcmp(smfOptInterfaceIp.string, data->client_addr) != 0)
 		return smfReply(&data->work, 550, "5.7.1", "Message from <%s> not permitted.", data->work.mail->address.string);
 
 	if (data->status == SMFIS_TEMPFAIL)
