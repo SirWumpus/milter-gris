@@ -9,6 +9,11 @@ is no set schedule for releases.
 --TODO--
 
 
+--0.25.1--
+
+   !	More configure and makefile file tweaks in sync with my other
+   	milters.
+
 --0.25--
 
    *	Requires LibSnert 1.75.56
