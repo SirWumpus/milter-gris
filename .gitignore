@@ -35,3 +35,4 @@ startup.sh
 config.h
 experimental/*
 configure.lineno
+configure~
